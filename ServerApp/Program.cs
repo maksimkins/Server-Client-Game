@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 
@@ -14,39 +15,65 @@ IPEndPoint endPoint = new IPEndPoint(
     ipAdress, port
     );
 
-using Socket serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+byte[] buffer = new byte[1024];
 
+Socket serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 serverSocket.Bind(endPoint);
 serverSocket.Listen();
 
-using Socket clientSocket = serverSocket.Accept();
-
-clientSocket.Send(Encoding.ASCII.GetBytes("(num is in [0; 100])"));
-byte[] buffer = new byte[1024];
-
-int num = Random.Shared.Next(0, 100);
-Console.WriteLine($"{clientSocket}: num = {num}");
-
-for (int i = 0; i < 5; i++)
+while (true)
 {
-    clientSocket.Receive(buffer);
-    string message = Encoding.ASCII.GetString(buffer);
+    try
+    {
+        Socket clientSocket = await serverSocket.AcceptAsync();
 
-    if (int.TryParse(message, out int result) && result == num)
-    {
-        buffer = new byte[1024];
-        clientSocket.Send(Encoding.ASCII.GetBytes($"you win"));
-        clientSocket.Close();
-        clientSocket.Disconnect(false);
-        break;
+        Console.WriteLine($"{clientSocket.RemoteEndPoint} connected");
+
+        Thread thread = new Thread(async () =>
+        {
+            try
+            {
+                await clientSocket.SendAsync(Encoding.ASCII.GetBytes("(num is in [0; 100])"));
+
+                int num = Random.Shared.Next(0, 100);
+                Console.WriteLine($"{clientSocket}: num = {num}");
+
+                for (int i = 0; i < 5; i++)
+                {
+                    await clientSocket.ReceiveAsync(buffer);
+                    string message = Encoding.ASCII.GetString(buffer);
+
+                    if (int.TryParse(message, out int result) && result == num)
+                    {
+                        buffer = new byte[1024];
+                        await clientSocket.SendAsync(Encoding.ASCII.GetBytes($"you win"));
+                        await Console.Out.WriteLineAsync($"{clientSocket.RemoteEndPoint} disconnected");
+                        clientSocket.Shutdown(SocketShutdown.Both);
+                        clientSocket.Close();
+                        break;
+                    }
+                    else
+                    {
+                        await clientSocket.SendAsync(Encoding.ASCII.GetBytes($"you have {4 - i} trial(s)"));
+                        continue;
+                    }
+                }
+            }catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+            
+        });
+        thread.Start();
     }
-    else
+    catch(Exception ex)
     {
-        clientSocket.Send(Encoding.ASCII.GetBytes($"you have {4 - i} trial(s)"));
-        continue;
+        await Console.Out.WriteLineAsync($"error occured: {ex.Message}");
     }
     
-
 }
+
+    
+
 
 

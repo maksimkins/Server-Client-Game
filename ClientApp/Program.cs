@@ -3,6 +3,11 @@ using System.Net;
 using System.Text;
 using System;
 
+
+string winMessage = "you win";
+byte[] winMesBytes = Encoding.ASCII.GetBytes(winMessage); ;
+
+
 string serverstr = "127.0.0.1";
 int port = 8080;
 
@@ -26,18 +31,22 @@ Console.WriteLine(Encoding.ASCII.GetString(buffer));
 
 for (int i = 0; i < 5; i++)
 {
-    //if (!serverSocket.Connected)
-    //{
-    //    break;
-    //}
+    try
+    {
+        Array.Clear(buffer);
+        Console.Write("input num: ");
+        string num = Console.ReadLine() ?? "";
 
-    Array.Clear(buffer);
-    Console.Write("input num: ");
-    string num = Console.ReadLine() ?? "";
-
-    serverSocket.Send(Encoding.ASCII.GetBytes(num));
-    serverSocket.Receive(buffer);
-    Console.WriteLine(Encoding.ASCII.GetString(buffer));
+        serverSocket.Send(Encoding.ASCII.GetBytes(num));
+        serverSocket.Receive(buffer);
+        Console.WriteLine(Encoding.ASCII.GetString(buffer));
+        if (Encoding.ASCII.GetString(buffer).Trim('\0') == Encoding.ASCII.GetString(winMesBytes))
+            break;
+    }
+    catch (Exception ex) { 
+        Console.WriteLine(ex.Message); 
+    }
+    
 
 }
 
